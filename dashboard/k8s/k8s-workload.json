@@ -16,8 +16,8 @@
   "editable": true,
   "gnetId": 8588,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1634044237741,
+  "id": 67,
+  "iteration": 1634045029335,
   "links": [],
   "panels": [
     {
@@ -1507,8 +1507,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "cluster-FO",
-          "value": "cluster-FO"
+          "text": "cluster-01",
+          "value": "cluster-01"
         },
         "datasource": null,
         "definition": "label_values(kube_namespace_labels, kubernetes_cluster_name)",
@@ -1525,7 +1525,7 @@
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
-        "regex": "/cluster-FO/",
+        "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
@@ -1568,5 +1568,5 @@
   "timezone": "browser",
   "title": "1. Kubernetes Deployment Statefulset Daemonset metrics",
   "uid": "oWe9aYxmk",
-  "version": 7
+  "version": 1
 }
