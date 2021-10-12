@@ -1,0 +1,4 @@
+#import k8s-overview dashboard
+$ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c 'curl -s -k -X POST -H "Content-Type: application/json" -d "{\"dashboard\":$(cat k8s-overview.json),\"overwrite\":true}" -u admin:admin https://localhost/graph/api/dashboards/import'
+#import k9s-wordload dashboard
+$ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c 'curl -s -k -X POST -H "Content-Type: application/json" -d "{\"dashboard\":$(cat k8s-workload.json),\"overwrite\":true}" -u admin:admin https://localhost/graph/api/dashboards/import'
