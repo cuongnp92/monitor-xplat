@@ -2,5 +2,5 @@
 $ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c "curl -L -k https://raw.githubusercontent.com/cuongnp92/monitor-xplat/main/dashboard/k8s/k8s-overview.json --output k8s-overview.json"
 $ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c 'curl -s -k -X POST -H "Content-Type: application/json" -d "{\"dashboard\":$(cat k8s-overview.json),\"overwrite\":true}" -u admin:admin https://localhost/graph/api/dashboards/import'
 #download & import k9s-wordload dashboard
-$ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c "curl -L -khttps://raw.githubusercontent.com/cuongnp92/monitor-xplat/main/dashboard/k8s/k8s-workload.json --output k8s-worload.json"
+$ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c "curl -L -k https://raw.githubusercontent.com/cuongnp92/monitor-xplat/main/dashboard/k8s/k8s-workload.json --output k8s-worload.json"
 $ docker exec -it $(docker ps | awk 'FNR ==2 {print $1}') /bin/bash -c 'curl -s -k -X POST -H "Content-Type: application/json" -d "{\"dashboard\":$(cat k8s-workload.json),\"overwrite\":true}" -u admin:admin https://localhost/graph/api/dashboards/import'
