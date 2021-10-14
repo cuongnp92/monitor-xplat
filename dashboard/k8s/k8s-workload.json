@@ -17,7 +17,7 @@
   "gnetId": 8588,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1634045029335,
+  "iteration": 1634045079197,
   "links": [],
   "panels": [
     {
@@ -1568,5 +1568,5 @@
   "timezone": "browser",
   "title": "1. Kubernetes Deployment Statefulset Daemonset metrics",
   "uid": "oWe9aYxmk",
-  "version": 1
+  "version": 2
 }
