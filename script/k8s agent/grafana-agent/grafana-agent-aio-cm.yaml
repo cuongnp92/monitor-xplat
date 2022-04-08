@@ -1,0 +1,744 @@
+kind: ConfigMap
+metadata:
+  name: grafana-agent-metrics
+  namespace: monitoring
+apiVersion: v1
+data:
+  agent.yaml: |
+    server:
+      log_level: debug
+      http_listen_port: 8080
+      grpc_listen_port: 9095
+    prometheus:
+      wal_directory: /tmp/grafana-agent-wal
+      global:
+        scrape_interval: 60s
+        external_labels:
+          kubernetes_cluster_name: FTG-DEV
+      configs:
+      - name: integrations
+        host_filter: false
+        remote_write:
+        - url: https://ftg-metric.prod.fmon.fptcloud.com/api/v1/write
+          basic_auth:
+            username: ftg
+            password: Ftg@#Url!2022
+          tls_config:
+            insecure_skip_verify: true
+        scrape_configs:
+        - job_name: 'kube-state-metrics'
+          static_configs:
+          - targets: ['kube-state-metrics.monitoring.svc.cluster.local:8080']
+        - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          job_name: kubernetes-apiservers
+          kubernetes_sd_configs:
+          - role: endpoints
+          relabel_configs:
+          - action: keep
+            regex: default;kubernetes;https
+            source_labels:
+            - __meta_kubernetes_namespace
+            - __meta_kubernetes_service_name
+            - __meta_kubernetes_endpoint_port_name
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+        - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          job_name: kubernetes-nodes
+          kubernetes_sd_configs:
+          - role: node
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - replacement: kubernetes.default.svc:443
+            target_label: __address__
+          - regex: (.+)
+            replacement: /api/v1/nodes/$1/proxy/metrics
+            source_labels:
+            - __meta_kubernetes_node_name
+            target_label: __metrics_path__
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+        - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          job_name: kubernetes-nodes-cadvisor
+          kubernetes_sd_configs:
+          - role: node
+          relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - replacement: kubernetes.default.svc:443
+            target_label: __address__
+          - regex: (.+)
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+            source_labels:
+            - __meta_kubernetes_node_name
+            target_label: __metrics_path__
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+        - job_name: kubernetes-service-endpoints
+          kubernetes_sd_configs:
+          - role: endpoints
+          relabel_configs:
+          - action: keep
+            regex: true
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scrape
+          - action: replace
+            regex: (https?)
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scheme
+            target_label: __scheme__
+          - action: replace
+            regex: (.+)
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_path
+            target_label: __metrics_path__
+          - action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            source_labels:
+            - __address__
+            - __meta_kubernetes_service_annotation_prometheus_io_port
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_service_name
+            target_label: kubernetes_name
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_pod_node_name
+            target_label: kubernetes_node
+        - job_name: kubernetes-service-endpoints-slow
+          kubernetes_sd_configs:
+          - role: endpoints
+          relabel_configs:
+          - action: keep
+            regex: true
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scrape_slow
+          - action: replace
+            regex: (https?)
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_scheme
+            target_label: __scheme__
+          - action: replace
+            regex: (.+)
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_path
+            target_label: __metrics_path__
+          - action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            source_labels:
+            - __address__
+            - __meta_kubernetes_service_annotation_prometheus_io_port
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_service_name
+            target_label: kubernetes_name
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_pod_node_name
+            target_label: kubernetes_node
+          scrape_interval: 5m
+          scrape_timeout: 30s
+        - honor_labels: true
+          job_name: prometheus-pushgateway
+          kubernetes_sd_configs:
+          - role: service
+          relabel_configs:
+          - action: keep
+            regex: pushgateway
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_probe
+        - job_name: kubernetes-services
+          kubernetes_sd_configs:
+          - role: service
+          metrics_path: /probe
+          params:
+            module:
+            - http_2xx
+          relabel_configs:
+          - action: keep
+            regex: true
+            source_labels:
+            - __meta_kubernetes_service_annotation_prometheus_io_probe
+          - source_labels:
+            - __address__
+            target_label: __param_target
+          - replacement: blackbox
+            target_label: __address__
+          - source_labels:
+            - __param_target
+            target_label: instance
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - source_labels:
+            - __meta_kubernetes_service_name
+            target_label: kubernetes_name
+        - job_name: kubernetes-pods
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+          - action: keep
+            regex: true
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+          - action: replace
+            regex: (https?)
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+            target_label: __scheme__
+          - action: replace
+            regex: (.+)
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_path
+            target_label: __metrics_path__
+          - action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            source_labels:
+            - __address__
+            - __meta_kubernetes_pod_annotation_prometheus_io_port
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_pod_name
+            target_label: kubernetes_pod_name
+          - action: drop
+            regex: Pending|Succeeded|Failed|Completed
+            source_labels:
+            - __meta_kubernetes_pod_phase
+        - job_name: kubernetes-pods-slow
+          kubernetes_sd_configs:
+          - role: pod
+          relabel_configs:
+          - action: keep
+            regex: true
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_scrape_slow
+          - action: replace
+            regex: (https?)
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_scheme
+            target_label: __scheme__
+          - action: replace
+            regex: (.+)
+            source_labels:
+            - __meta_kubernetes_pod_annotation_prometheus_io_path
+            target_label: __metrics_path__
+          - action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            source_labels:
+            - __address__
+            - __meta_kubernetes_pod_annotation_prometheus_io_port
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            source_labels:
+            - __meta_kubernetes_pod_name
+            target_label: kubernetes_pod_name
+          - action: drop
+            regex: Pending|Succeeded|Failed|Completed
+            source_labels:
+            - __meta_kubernetes_pod_phase
+          scrape_interval: 5m
+          scrape_timeout: 30s
+---
+kind: ConfigMap
+metadata:
+  name: grafana-agent-logs
+  namespace: monitoring
+apiVersion: v1
+data:          
+  agent-logs.yaml: |
+    loki:
+        configs:
+          - clients:
+              - url: https://ftg-logging.prod.fmon.fptcloud.com/loki/api/v1/push
+                basic_auth:
+                  username: ftg
+                  password: Ftg@#Url!2022
+                external_labels:
+                  kubernetes_cluster_name: FTG-DEV
+            name: default
+            scrape_configs:
+              - job_name: kubernetes-pods-name
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - source_labels:
+                      - __meta_kubernetes_pod_label_name
+                    target_label: __service__
+                  - source_labels:
+                      - __meta_kubernetes_pod_node_name
+                    target_label: __host__
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __service__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - action: replace
+                    replacement: $1
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                      - __service__
+                    target_label: job
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                  - replacement: /var/log/pods/*$1/*.log
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_pod_uid
+                      - __meta_kubernetes_pod_container_name
+                    target_label: __path__
+                pipeline_stages:
+                  - cri: {}
+                  - match:
+                      selector: '{namespace="ingress-nginx"}'
+                      stages:
+                      - regex:
+                          expression: '(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<domain>.*) \- \[(?P<datetime>.*)\] \"(?P<method>\w+) (?P<url>.*) (?P<proto>.*)\" (?P<status>\d+) (?P<bytes>\d+) \"(?P<http_referer>.*)\" \"(?P<http_user_agent>.*)\" (?P<request_length>.*) (?P<request_time>.*) \[(?P<proxy_upstream_name>.+)\] \[(?P<proxy_alternative_upstream_name>.*)\] (?P<upstream_addr>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\:(?P<upstream_length>.*) (?P<upstream_response_length>.*) (?P<upstream_response_time>.*) (?P<upstream_status>\d+) (?P<request_id>\w+)'
+                      - labels:
+                          ip:
+                          domain:
+                          datetime:
+                          method:
+                          url:
+                          proto:
+                          status:
+                          bytes:
+                          http_referer:
+                          http_user_agent:
+                          request_length:
+                          request_time:
+                          proxy_upstream_name:
+                          proxy_alternative_upstream_name:
+                          upstream_addr:
+                          upstream_length:
+                          upstream_response_length:
+                          upstream_response_time:
+                          upstream_status:
+                          request_id:
+              - job_name: kubernetes-pods-app
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - action: drop
+                    regex: .+
+                    source_labels:
+                      - __meta_kubernetes_pod_label_name
+                  - source_labels:
+                      - __meta_kubernetes_pod_label_app
+                    target_label: __service__
+                  - source_labels:
+                      - __meta_kubernetes_pod_node_name
+                    target_label: __host__
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __service__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - action: replace
+                    replacement: $1
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                      - __service__
+                    target_label: job
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                  - replacement: /var/log/pods/*$1/*.log
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_pod_uid
+                      - __meta_kubernetes_pod_container_name
+                    target_label: __path__
+                pipeline_stages:
+                  - cri: {}
+                  - match:
+                      selector: '{namespace="ingress-nginx"}'
+                      stages:
+                      - regex:
+                          expression: '(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<domain>.*) \- \[(?P<datetime>.*)\] \"(?P<method>\w+) (?P<url>.*) (?P<proto>.*)\" (?P<status>\d+) (?P<bytes>\d+) \"(?P<http_referer>.*)\" \"(?P<http_user_agent>.*)\" (?P<request_length>.*) (?P<request_time>.*) \[(?P<proxy_upstream_name>.+)\] \[(?P<proxy_alternative_upstream_name>.*)\] (?P<upstream_addr>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\:(?P<upstream_length>.*) (?P<upstream_response_length>.*) (?P<upstream_response_time>.*) (?P<upstream_status>\d+) (?P<request_id>\w+)'
+                      - labels:
+                          ip:
+                          domain:
+                          datetime:
+                          method:
+                          url:
+                          proto:
+                          status:
+                          bytes:
+                          http_referer:
+                          http_user_agent:
+                          request_length:
+                          request_time:
+                          proxy_upstream_name:
+                          proxy_alternative_upstream_name:
+                          upstream_addr:
+                          upstream_length:
+                          upstream_response_length:
+                          upstream_response_time:
+                          upstream_status:
+                          request_id:                   
+              - job_name: kubernetes-pods-direct-controllers
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - action: drop
+                    regex: .+
+                    separator: ""
+                    source_labels:
+                      - __meta_kubernetes_pod_label_name
+                      - __meta_kubernetes_pod_label_app
+                  - action: drop
+                    regex: '[0-9a-z-.]+-[0-9a-f]{8,10}'
+                    source_labels:
+                      - __meta_kubernetes_pod_controller_name
+                  - source_labels:
+                      - __meta_kubernetes_pod_controller_name
+                    target_label: __service__
+                  - source_labels:
+                      - __meta_kubernetes_pod_node_name
+                    target_label: __host__
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __service__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - action: replace
+                    replacement: $1
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                      - __service__
+                    target_label: job
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                  - replacement: /var/log/pods/*$1/*.log
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_pod_uid
+                      - __meta_kubernetes_pod_container_name
+                    target_label: __path__
+                pipeline_stages:
+                  - cri: {}
+                  - match:
+                      selector: '{namespace="ingress-nginx"}'
+                      stages:
+                      - regex:
+                          expression: '(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<domain>.*) \- \[(?P<datetime>.*)\] \"(?P<method>\w+) (?P<url>.*) (?P<proto>.*)\" (?P<status>\d+) (?P<bytes>\d+) \"(?P<http_referer>.*)\" \"(?P<http_user_agent>.*)\" (?P<request_length>.*) (?P<request_time>.*) \[(?P<proxy_upstream_name>.+)\] \[(?P<proxy_alternative_upstream_name>.*)\] (?P<upstream_addr>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\:(?P<upstream_length>.*) (?P<upstream_response_length>.*) (?P<upstream_response_time>.*) (?P<upstream_status>\d+) (?P<request_id>\w+)'
+                      - labels:
+                          ip:
+                          domain:
+                          datetime:
+                          method:
+                          url:
+                          proto:
+                          status:
+                          bytes:
+                          http_referer:
+                          http_user_agent:
+                          request_length:
+                          request_time:
+                          proxy_upstream_name:
+                          proxy_alternative_upstream_name:
+                          upstream_addr:
+                          upstream_length:
+                          upstream_response_length:
+                          upstream_response_time:
+                          upstream_status:
+                          request_id:                   
+              - job_name: kubernetes-pods-indirect-controller
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - action: drop
+                    regex: .+
+                    separator: ""
+                    source_labels:
+                      - __meta_kubernetes_pod_label_name
+                      - __meta_kubernetes_pod_label_app
+                  - action: keep
+                    regex: '[0-9a-z-.]+-[0-9a-f]{8,10}'
+                    source_labels:
+                      - __meta_kubernetes_pod_controller_name
+                  - action: replace
+                    regex: ([0-9a-z-.]+)-[0-9a-f]{8,10}
+                    source_labels:
+                      - __meta_kubernetes_pod_controller_name
+                    target_label: __service__
+                  - source_labels:
+                      - __meta_kubernetes_pod_node_name
+                    target_label: __host__
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __service__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - action: replace
+                    replacement: $1
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                      - __service__
+                    target_label: job
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                  - replacement: /var/log/pods/*$1/*.log
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_pod_uid
+                      - __meta_kubernetes_pod_container_name
+                    target_label: __path__
+                pipeline_stages:
+                  - cri: {}
+                  - match:
+                      selector: '{namespace="ingress-nginx"}'
+                      stages:
+                      - regex:
+                          expression: '(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<domain>.*) \- \[(?P<datetime>.*)\] \"(?P<method>\w+) (?P<url>.*) (?P<proto>.*)\" (?P<status>\d+) (?P<bytes>\d+) \"(?P<http_referer>.*)\" \"(?P<http_user_agent>.*)\" (?P<request_length>.*) (?P<request_time>.*) \[(?P<proxy_upstream_name>.+)\] \[(?P<proxy_alternative_upstream_name>.*)\] (?P<upstream_addr>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\:(?P<upstream_length>.*) (?P<upstream_response_length>.*) (?P<upstream_response_time>.*) (?P<upstream_status>\d+) (?P<request_id>\w+)'
+                      - labels:
+                          ip:
+                          domain:
+                          datetime:
+                          method:
+                          url:
+                          proto:
+                          status:
+                          bytes:
+                          http_referer:
+                          http_user_agent:
+                          request_length:
+                          request_time:
+                          proxy_upstream_name:
+                          proxy_alternative_upstream_name:
+                          upstream_addr:
+                          upstream_length:
+                          upstream_response_length:
+                          upstream_response_time:
+                          upstream_status:
+                          request_id:            
+              - job_name: kubernetes-pods-static
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_label_component
+                    target_label: __service__
+                  - source_labels:
+                      - __meta_kubernetes_pod_node_name
+                    target_label: __host__
+                  - action: drop
+                    regex: ""
+                    source_labels:
+                      - __service__
+                  - action: labelmap
+                    regex: __meta_kubernetes_pod_label_(.+)
+                  - action: replace
+                    replacement: $1
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                      - __service__
+                    target_label: job
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                  - replacement: /var/log/pods/*$1/*.log
+                    separator: /
+                    source_labels:
+                      - __meta_kubernetes_pod_annotation_kubernetes_io_config_mirror
+                      - __meta_kubernetes_pod_container_name
+                    target_label: __path__
+                pipeline_stages:
+                  - cri: {}
+                  - match:
+                      selector: '{namespace="ingress-nginx"}'
+                      stages:
+                      - regex:
+                          expression: '(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) (?P<domain>.*) \- \[(?P<datetime>.*)\] \"(?P<method>\w+) (?P<url>.*) (?P<proto>.*)\" (?P<status>\d+) (?P<bytes>\d+) \"(?P<http_referer>.*)\" \"(?P<http_user_agent>.*)\" (?P<request_length>.*) (?P<request_time>.*) \[(?P<proxy_upstream_name>.+)\] \[(?P<proxy_alternative_upstream_name>.*)\] (?P<upstream_addr>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\:(?P<upstream_length>.*) (?P<upstream_response_length>.*) (?P<upstream_response_time>.*) (?P<upstream_status>\d+) (?P<request_id>\w+)'
+                      - labels:
+                          ip:
+                          domain:
+                          datetime:
+                          method:
+                          url:
+                          proto:
+                          status:
+                          bytes:
+                          http_referer:
+                          http_user_agent:
+                          request_length:
+                          request_time:
+                          proxy_upstream_name:
+                          proxy_alternative_upstream_name:
+                          upstream_addr:
+                          upstream_length:
+                          upstream_response_length:
+                          upstream_response_time:
+                          upstream_status:
+                          request_id:                  
+        positions_directory: /tmp/positions
+    server:
+      log_level: debug
+      http_listen_port: 8081
+      grpc_listen_port: 9096
+---
+kind: ConfigMap
+metadata:
+  name: grafana-agent-traces
+  namespace: monitoring
+apiVersion: v1
+data:        
+  agent-traces.yaml: |
+    server:
+        http_listen_port: 8082
+        log_level: debug
+        grpc_listen_port: 9097
+    tempo:
+        configs:
+          - batch:
+                send_batch_size: 1000
+                timeout: 5s
+            name: default
+            receivers:
+                jaeger:
+                    protocols:
+                        grpc: null
+                        thrift_binary: null
+                        thrift_compact: null
+                        thrift_http: null
+                    remote_sampling:
+                        strategy_file: /etc/agent/strategies.json
+                        tls:
+                            insecure: true
+                opencensus: null
+                otlp:
+                    protocols:
+                        grpc: 
+                          endpoint: 0.0.0.0:55680
+                        http: 
+                          endpoint: 0.0.0.0:55780
+                zipkin: null
+            remote_write:
+              - endpoint: 'https://ftg-tracing.prod.fmon.fptcloud.com/oltp-grpc'
+                retry_on_failure:
+                  enabled: false
+                insecure: true
+                protocol: grpc
+            scrape_configs:
+              - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                job_name: kubernetes-pods
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_namespace
+                    target_label: namespace
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_name
+                    target_label: pod
+                  - action: replace
+                    source_labels:
+                      - __meta_kubernetes_pod_container_name
+                    target_label: container
+                tls_config:
+                    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                    insecure_skip_verify: false
+  strategies.json: '{"default_strategy": {"param": 0.001, "type": "probabilistic"}}'        
