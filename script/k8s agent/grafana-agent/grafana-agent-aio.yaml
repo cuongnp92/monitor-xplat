@@ -1,0 +1,230 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-agent-all-in-one
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-agent-all-in-one
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-agent-all-in-one
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-agent-all-in-one
+subjects:
+- kind: ServiceAccount
+  name: grafana-agent-all-in-one
+  namespace: monitoring
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: grafana-agent-all-in-one
+  namespace: monitoring
+spec:
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      name: grafana-agent-all-in-one
+  template:
+    metadata:
+      labels:
+        name: grafana-agent-all-in-one
+    spec:
+      containers:
+      # metrics component
+      - name: agent-metrics
+        args:
+        - -config.file=/etc/agent/agent.yaml
+        command:
+        - /bin/agent
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: grafana/agent:v0.21.1
+        imagePullPolicy: IfNotPresent
+        name: agent
+        ports:
+        - containerPort: 12345
+          name: http-metrics
+        volumeMounts:
+        - mountPath: /etc/agent
+          name: grafana-agent      
+      
+      # logs component      
+      - name: agent-logs
+        args:
+        - -config.file=/etc/agent/agent-logs.yaml
+        command:
+        - /bin/agent
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: grafana/agent:v0.21.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: http-metrics
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /etc/agent
+          name: grafana-agent-logs
+        - mountPath: /var/log
+          name: varlog
+        - mountPath: /var/lib/docker/containers
+          name: varlibdockercontainers
+          readOnly: true
+        - mountPath: /etc/machine-id
+          name: etcmachineid
+          readOnly: true
+          
+      # traces component    
+      - name: agent-traces
+        args:
+        - -config.file=/etc/agent/agent-traces.yaml
+        command:
+        - /bin/agent
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: grafana/agent:v0.21.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+          name: http-metrics
+        - containerPort: 6831
+          name: thrift-compact
+          protocol: UDP
+        - containerPort: 6832
+          name: thrift-binary
+          protocol: UDP
+        - containerPort: 14268
+          name: thrift-http
+          protocol: TCP
+        - containerPort: 14250
+          name: thrift-grpc
+          protocol: TCP
+        - containerPort: 9411
+          name: zipkin
+          protocol: TCP
+        - containerPort: 55680
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 55780
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 55678
+          name: opencensus
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/agent
+          name: grafana-agent-traces     
+      serviceAccount: grafana-agent-all-in-one
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      volumes:
+      # for metrics component 
+      - configMap:
+          name: grafana-agent-metrics
+        name: grafana-agent
+        
+      # for logs component
+      - configMap:
+          name: grafana-agent-logs
+        name: grafana-agent-logs
+      - hostPath:
+          path: /var/log
+        name: varlog
+      - hostPath:
+          path: /var/lib/docker/containers
+        name: varlibdockercontainers
+      - hostPath:
+          path: /etc/machine-id
+        name: etcmachineid
+        
+      # for traces component
+      - configMap:
+          name: grafana-agent-traces
+        name: grafana-agent-traces       
+  updateStrategy:
+    type: RollingUpdate  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: grafana-agent-traces-aio
+  name: grafana-agent-traces-aio
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - name: agent-http-metrics
+    port: 8082
+    targetPort: 8082
+  - name: agent-thrift-compact
+    port: 6831
+    protocol: UDP
+    targetPort: 6831
+  - name: agent-thrift-binary
+    port: 6832
+    protocol: UDP
+    targetPort: 6832
+  - name: agent-thrift-http
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: agent-thrift-grpc
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  - name: agent-zipkin
+    port: 9411
+    protocol: TCP
+    targetPort: 9411
+  - name: agent-otlp-grpc
+    port: 55680
+    protocol: TCP
+    targetPort: 55680
+  - name: agent-otlp-http
+    port: 55780
+    protocol: TCP
+    targetPort: 55780
+  - name: agent-opencensus
+    port: 55678
+    protocol: TCP
+    targetPort: 55678
+  selector:
+    name: grafana-agent-all-in-one    
