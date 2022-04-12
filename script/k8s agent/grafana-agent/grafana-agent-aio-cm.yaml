@@ -1,7 +1,7 @@
 kind: ConfigMap
 metadata:
   name: grafana-agent-metrics
-  namespace: monitoring1
+  namespace: monitoring
 apiVersion: v1
 data:
   agent.yaml: |
@@ -281,7 +281,7 @@ data:
 kind: ConfigMap
 metadata:
   name: grafana-agent-logs
-  namespace: monitoring1
+  namespace: monitoring
 apiVersion: v1
 data:          
   agent-logs.yaml: |
@@ -681,7 +681,7 @@ data:
 kind: ConfigMap
 metadata:
   name: grafana-agent-traces
-  namespace: monitoring1
+  namespace: monitoring
 apiVersion: v1
 data:        
   agent-traces.yaml: |
