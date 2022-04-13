@@ -14,15 +14,15 @@ data:
       global:
         scrape_interval: 60s
         external_labels:
-          kubernetes_cluster_name: FMON-TEST
+          kubernetes_cluster_name: CLUSTER-NAME
       configs:
       - name: integrations
         host_filter: false
         remote_write:
-        - url: https://fmon-test-3-metric.prod.fmon.fptcloud.com/api/v1/write
+        - url: https://fmon-metric.prod.fmon.fptcloud.com/api/v1/write
           basic_auth:
-            username: fmon-test3
-            password: r39cN9mcqt
+            username: user
+            password: pass
           tls_config:
             insecure_skip_verify: true
         scrape_configs:
@@ -288,12 +288,12 @@ data:
     loki:
         configs:
           - clients:
-              - url: https://fmon-test3-logging.prod.fmon.fptcloud.com/loki/api/v1/push
+              - url: https://fmon-logging.prod.fmon.fptcloud.com/loki/api/v1/push
                 basic_auth:
-                  username: fmon-test-3
-                  password: r39cN9mcqt
+                  username: user
+                  password: pass
                 external_labels:
-                  kubernetes_cluster_name: FMON-TEST
+                  kubernetes_cluster_name: CLUSTER-NAME
             name: default
             scrape_configs:
               - job_name: kubernetes-pods-name
@@ -715,7 +715,7 @@ data:
                           endpoint: 0.0.0.0:55780
                 zipkin: null
             remote_write:
-              - endpoint: 'https://ftg-tracing.prod.fmon.fptcloud.com/oltp-grpc'
+              - endpoint: 'https://myfpt-tracing.prod.fmon.fptcloud.com/oltp-grpc'
                 retry_on_failure:
                   enabled: false
                 insecure: true
