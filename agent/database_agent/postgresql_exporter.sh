@@ -34,7 +34,7 @@ fi
 # create env file
 if [ ! -f /opt/postgres_exporter/postgres_exporter.env ]; then
 cat <<EOF >/opt/postgres_exporter/postgres_exporter.env
-DATA_SOURCE_NAME="postgresql://${database_username}:${database_password}@localhost:5432/${database}sslmode=disable"
+DATA_SOURCE_NAME="postgresql://${database_username}:${database_password}@localhost:5432/${database}?sslmode=disable"
 EOF
 fi
 

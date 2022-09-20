@@ -1,0 +1,50 @@
+kind: ConfigMap
+metadata:
+  name: grafana-agent
+  namespace: fci-namvh-demo
+apiVersion: v1
+data:
+  agent.yaml: |
+    metrics:
+      wal_directory: /var/lib/agent/wal
+      global:
+        scrape_interval: 60s
+        external_labels:
+          cluster: cuongnp-test
+      configs:
+      - name: integrations
+        remote_write:
+        - url: http://prometheus-community-server.fci-namvh-demo/api/v1/write
+        scrape_configs:
+		- job_name: blackbox-external-targets
+          metrics_path: /probe
+          params:
+            module: [http_2xx]
+          static_configs:
+            - targets:
+              - https://www.google.com
+              - https://fptcloud.com
+              - https://api.fci.fmon.fptcloud.com
+              - https://app.diagrams.net
+              - https://youtube.com
+              - https://gmail.com
+              - https://uservice.fci.vn
+              - https://helm.sh
+              - https://outlook.office.com
+              - https://dockerlabs.collabnix.com
+              - https://gitlab.bcnfpt.com
+              - http://info.cern.ch
+              - https://grafana.com
+              - https://cellphones.com.vn
+              - https://phongvu.vn
+              - https://fpt.workplace.com
+              - https://vnexpress.net
+              - https://172.16.18.36:32000
+              - https://fci-namvh-demo-metric.fci.fmon.fptcloud.com
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              replacement: prometheus-blackbox-prometheus-blackbox-exporter:9115
