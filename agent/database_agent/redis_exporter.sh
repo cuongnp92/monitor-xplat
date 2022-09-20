@@ -33,11 +33,11 @@ Group=redis
 Type=simple
 ExecReload=/bin/kill -HUP \$MAINPID
 ExecStart=/usr/bin/redis_exporter 
-    --log-format=txt 
-    --namespace=redis 
-    --web.listen-address=:9121 
-    --redis.addr="redis://$ip:6379" 
-    --redis.password="$database_password"
+    --log-format=txt \
+    --namespace=redis \
+    --web.listen-address=:9121 \
+    --redis.addr="redis://$ip:6379" \
+    --redis.password="$database_password" \
     --web.telemetry-path=/metrics
 [Install]
 WantedBy=multi-user.target    
