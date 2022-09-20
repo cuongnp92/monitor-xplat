@@ -52,10 +52,10 @@ data:
       external_labels:
         kubernetes_cluster_name: vpbanks-uat
     remote_write:
-    - url: https://vpbanks-uat-metric.prod.fmon.fptcloud.com/api/v1/write
+    - url: https://user-metric.prod.fmon.fptcloud.com/api/v1/write
       basic_auth:
-        username: vpbanks-uat
-        password: bDJLfLzFgTx8DNFw
+        username: user
+        password: password
     scrape_configs:
       - job_name: 'kubernetes-apiservers'
         kubernetes_sd_configs:
