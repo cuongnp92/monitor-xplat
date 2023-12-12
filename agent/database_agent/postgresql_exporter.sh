@@ -6,7 +6,7 @@ version="${VERSION:-0.10.1}"
 arch="${ARCH:-linux-amd64}"
 bin_dir="${BIN_DIR:-/usr/local/bin}"
 
-source agent_config.sh
+#source agent_config.sh
 
 # Check folder opt 
 wget "https://github.com/prometheus-community/postgres_exporter/releases/download/v$version/postgres_exporter-$version.$arch.tar.gz" \
