@@ -5,7 +5,7 @@ version="${VERSION:-1.35.1}"
 arch="${ARCH:-linux-amd64}"
 bin_dir="${BIN_DIR:-/usr/bin}"
 
-source agent_config.sh
+#source agent_config.sh
 
 wget "https://github.com/oliver006/redis_exporter/releases/download/v$version/redis_exporter-v$version.$arch.tar.gz" \
     -O /opt/redis_exporter.tar.gz
