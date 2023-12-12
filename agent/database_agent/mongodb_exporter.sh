@@ -6,7 +6,7 @@ version="${VERSION:-0.7.1}"
 arch="${ARCH:-linux-amd64}"
 bin_dir="${BIN_DIR:-/usr/local/bin}"
 
-source agent_config.sh
+#source agent_config.sh
 
 # Check folder opt
 mkdir -p /opt;
